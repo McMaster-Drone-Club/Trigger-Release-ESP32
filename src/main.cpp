@@ -4,6 +4,8 @@
 #define BAUD_RATE 9600
 #define COMMAND_LENGTH 4
 #define DELAY_MS 500
+#define TIME_MS_FOR_RELEASE 2000
+#define TIME_MS_FOR_RETRACT 2000
 
 enum State {
 	LOCKED,
@@ -25,6 +27,10 @@ enum State state;
 char data [COMMAND_LENGTH + 1]; 
 unsigned long previousMillis; 
 unsigned long currentMillis;
+
+unsigned long timeEnteredReleasing;
+unsigned long timeEnteredRetracting;
+
 int idx = 0;
 
 
@@ -49,6 +55,7 @@ void handle_command(Command cmd) {
 		case RELEASE:
 			if (state == ARMED) {
 				state = RELEASING;
+				timeEnteredReleasing = millis(); 
 			}
 			break;
 
@@ -57,6 +64,23 @@ void handle_command(Command cmd) {
 			break;
 
 		default:
+			break;
+	}
+}
+
+void update_state_machine() {
+	switch (state) {
+		case RELEASING: 
+			if (millis() - timeEnteredReleasing >= TIME_MS_FOR_RELEASE) {
+				state = RETRACTING; 
+				timeEnteredRetracting = millis(); 
+			}
+			break;
+
+		case RETRACTING: 
+			if (millis() - timeEnteredRetracting >= TIME_MS_FOR_RETRACT) {
+				state = LOCKED; 
+			}
 			break;
 	}
 }
@@ -126,5 +150,6 @@ void loop() {
 		previousMillis = currentMillis; 
 	}
 	
+	update_state_machine(); 
 }
 
